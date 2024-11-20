@@ -81,6 +81,7 @@ Future features include:
 ## **SQL Schema**
 
 ### **Tables**
+
 ```sql
 CREATE TABLE Hotel (
     hotel_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -111,8 +112,10 @@ CREATE TABLE Booking (
     FOREIGN KEY (guest_id) REFERENCES Guest(guest_id),
     FOREIGN KEY (room_id) REFERENCES Room(room_id)
 );
+```
+---
 
-## **Queries**
+### **SQL Queries**
 
 ```sql
 -- View all tables
@@ -125,24 +128,126 @@ SELECT * FROM Booking;
 SELECT * FROM Room WHERE status = 'Vacant';
 
 -- Revenue by room type
-SELECT room_type, SUM(price) AS total_revenue 
-FROM Booking 
-JOIN Room ON Booking.room_id = Room.room_id 
+SELECT room_type, SUM(price) AS total_revenue
+FROM Booking
+JOIN Room ON Booking.room_id = Room.room_id
 GROUP BY room_type;
 
 -- Find guests with multiple bookings
-SELECT guest_id, COUNT(*) AS booking_count 
-FROM Booking 
-GROUP BY guest_id 
+SELECT guest_id, COUNT(*) AS booking_count
+FROM Booking
+GROUP BY guest_id
 HAVING COUNT(*) > 1;
 
 -- List bookings for a specific date range
-SELECT * FROM Booking 
+SELECT * FROM Booking
 WHERE check_in_date >= '2024-11-01' AND check_out_date <= '2024-12-31';
 
 -- Find occupied rooms on a specific date
-SELECT Room.room_id, room_type, status 
-FROM Room 
-JOIN Booking ON Room.room_id = Booking.room_id 
+SELECT Room.room_id, room_type, status
+FROM Room
+JOIN Booking ON Room.room_id = Booking.room_id
 WHERE '2024-11-13' BETWEEN check_in_date AND check_out_date;
+```
+---
+
+## **Advanced SQL Queries**
+### **Managing Room Availability**
+```sql
+-- Filters Rooms by Date Range and Availability
+
+SELECT Room.room_id, room_type, price, room_condition, status
+FROM Room
+       LEFT JOIN Booking ON Room.room_id = Booking.room_id
+WHERE (
+  Booking.check_out_date < '2024-11-01' OR Booking.check_in_date > '2024-11-10'
+    OR Booking.room_id IS NULL
+  ) AND Room.status = 'Vacant';
+
+--Filters Rooms by Type and Pricing
+
+SELECT *
+FROM Room
+WHERE room_type = 'Deluxe' AND price BETWEEN 100 AND 200 AND status = 'Vacant';
+
+--Find Rooms by Condition
+
+SELECT *
+FROM Room
+WHERE room_condition = 'Good' AND status = 'Vacant';
+```
+
+### **Guest Insights**
+
+```sql
+-- Identify Repeat Customers
+
+SELECT Guest.guest_id, guest_name, COUNT(Booking.booking_id) AS booking_count
+FROM Guest
+       JOIN Booking ON Guest.guest_id = Booking.guest_id
+GROUP BY Guest.guest_id
+HAVING COUNT(Booking.booking_id) > 1;
+
+-- Retrieve Guest History
+
+SELECT Guest.guest_id, guest_name, phone_number, Booking.booking_id, check_in_date, check_out_date, Room.room_type
+FROM Guest
+       JOIN Booking ON Guest.guest_id = Booking.guest_id
+       JOIN Room ON Booking.room_id = Room.room_id
+WHERE Guest.guest_id = 1; -- Replace 1 with the desired guest ID
+```
+
+### Booking Analytics
+
+```sql
+-- Calculate Total Revenue by Room Type
+
+SELECT Room.room_type, SUM(Room.price * DATEDIFF(Booking.check_out_date, Booking.check_in_date)) AS total_revenue
+FROM Booking
+       JOIN Room ON Booking.room_id = Room.room_id
+GROUP BY Room.room_type;
+
+-- Calculate Occupancy Rates
+
+SELECT Room.room_type,
+       COUNT(Booking.room_id) AS bookings_count,
+       ROUND(COUNT(Booking.room_id) / (SELECT COUNT(*) FROM Room) * 100, 2) AS occupancy_rate
+FROM Booking
+       JOIN Room ON Booking.room_id = Room.room_id
+GROUP BY Room.room_type;
+
+-- Identify Underutilized Rooms
+
+SELECT Room.room_id, room_type, COUNT(Booking.booking_id) AS bookings_count
+FROM Room
+       LEFT JOIN Booking ON Room.room_id = Booking.room_id
+GROUP BY Room.room_id, room_type
+HAVING COUNT(Booking.booking_id) < 2; -- Rooms booked less than twice
+```
+### Integration and Testing
+
+```sql
+-- Testing for Room Availability
+
+SELECT Room.room_id, room_type, price, room_condition, status
+FROM Room
+WHERE status = 'Vacant';
+
+-- Verifying Revenue Calculations
+
+SELECT Room.room_type, SUM(price) AS total_revenue
+FROM Booking
+       JOIN Room ON Booking.room_id = Room.room_id
+GROUP BY Room.room_type;
+
+
+-- Testing Booking Insights 
+
+SELECT Booking.booking_id, Guest.guest_name, Room.room_type, check_in_date, check_out_date
+FROM Booking
+       JOIN Guest ON Booking.guest_id = Guest.guest_id
+       JOIN Room ON Booking.room_id = Room.room_id
+WHERE check_in_date >= '2024-11-01' AND check_out_date <= '2024-12-31';
+```
+
 
