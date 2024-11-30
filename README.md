@@ -43,38 +43,40 @@ Future features include:
 
 ## **Database Design**
 
-### **Tables**
 #### **Hotel**
-| Column Name   | Data Type  | Constraints  |
-|---------------|------------|--------------|
-| hotel_id      | INT        | PRIMARY KEY  |
-| hotel_name    | VARCHAR    | NOT NULL     |
-| location      | VARCHAR    |              |
+| Column Name | Data Type | Constraints    |
+|-------------|-----------|----------------|
+| hotel_id    | INT       | PRIMARY KEY    |
+| hotel_name  | VARCHAR   | NOT NULL       |
+| location    | VARCHAR   |                |
 
 #### **Guest**
-| Column Name   | Data Type  | Constraints  |
-|---------------|------------|--------------|
-| guest_id      | INT        | PRIMARY KEY  |
-| guest_name    | VARCHAR    | NOT NULL     |
-| phone_number  | VARCHAR    |              |
+| Column Name  | Data Type | Constraints       |
+|--------------|-----------|-------------------|
+| guest_id     | INT       | PRIMARY KEY       |
+| guest_name   | VARCHAR   | NOT NULL          |
+| phone_number | VARCHAR   | UNIQUE            |
+| email        | VARCHAR   | UNIQUE (optional) |
 
 #### **Room**
-| Column Name     | Data Type  | Constraints                                    |
-|-----------------|------------|------------------------------------------------|
-| room_id         | INT        | PRIMARY KEY                                    |
-| room_type       | VARCHAR    | NOT NULL                                       |
-| price           | DECIMAL    |                                                |
-| room_condition  | VARCHAR    | CHECK (room_condition IN ('Clean', 'Dirty'))   |
-| status          | VARCHAR    | CHECK (status IN ('Vacant', 'Occupied'))       |
+| Column Name    | Data Type   | Constraints                           |
+|----------------|-------------|---------------------------------------|
+| room_id        | INT         | PRIMARY KEY                          |
+| room_type      | VARCHAR     | NOT NULL                             |
+| price          | DECIMAL     | NOT NULL, CHECK (price > 0)          |
+| room_condition | VARCHAR     | CHECK (room_condition IN ('Clean', 'Dirty')) |
+| status         | VARCHAR     | NOT NULL, CHECK (status IN ('Vacant', 'Occupied')) |
+| room_view      | VARCHAR     |                                       |
+| amenities      | VARCHAR     |                                       |
 
 #### **Booking**
-| Column Name     | Data Type  | Constraints                        |
-|-----------------|------------|------------------------------------|
-| booking_id      | INT        | PRIMARY KEY                       |
-| guest_id        | INT        | FOREIGN KEY REFERENCES Guest(guest_id) |
-| room_id         | INT        | FOREIGN KEY REFERENCES Room(room_id)  |
-| check_in_date   | DATE       | NOT NULL                          |
-| check_out_date  | DATE       | NOT NULL                          |
+| Column Name     | Data Type | Constraints               |
+|-----------------|-----------|---------------------------|
+| booking_id      | INT       | PRIMARY KEY               |
+| guest_id        | INT       | FOREIGN KEY (Guest.guest_id) |
+| room_id         | INT       | FOREIGN KEY (Room.room_id) |
+| check_in_date   | DATE      | NOT NULL                  |
+| check_out_date  | DATE      | NOT NULL                  |
 
 ---
 
@@ -92,15 +94,20 @@ CREATE TABLE Hotel (
 CREATE TABLE Guest (
     guest_id INT AUTO_INCREMENT PRIMARY KEY,
     guest_name VARCHAR(50) NOT NULL,
-    phone_number VARCHAR(15)
+    phone_number VARCHAR(15),
+    email VARCHAR(255),
+    CONSTRAINT UNIQUE (phone_number),
+    CONSTRAINT UNIQUE (email)
 );
 
 CREATE TABLE Room (
     room_id INT AUTO_INCREMENT PRIMARY KEY,
     room_type VARCHAR(50) NOT NULL,
-    price DECIMAL(8, 2),
-    room_condition VARCHAR(10),
-    status VARCHAR(10)
+    price DECIMAL(8, 2) NOT NULL CHECK (price > 0),
+    room_condition VARCHAR(10) CHECK (room_condition IN ('Clean', 'Dirty')),
+    status VARCHAR(10) NOT NULL CHECK (status IN ('Vacant', 'Occupied')),
+    room_view VARCHAR(50),
+    amenities VARCHAR(255)
 );
 
 CREATE TABLE Booking (
