@@ -9,7 +9,7 @@ def connect_to_database():
         conn = mysql.connector.connect(
             host="localhost",
             user="root",
-            password="your pw here",
+            password="Princess55$$!!",
             database="HotelManagementSystem"
         )
         return conn
@@ -21,7 +21,7 @@ def view_all_details():
     # Create the second main window
     details_window = Toplevel(root)
     details_window.title("All Room and Guest Information")
-    details_window.geometry("1200x800")  # Adjust size as needed
+    details_window.geometry("1400x800")  # Adjust size as needed
 
     # Create a notebook for tabs
     notebook = ttk.Notebook(details_window)
@@ -31,8 +31,24 @@ def view_all_details():
     room_tab = Frame(notebook)
     notebook.add(room_tab, text="Room Details")
 
-    room_tree = ttk.Treeview(room_tab, columns=("Room ID", "Type", "Price", "Condition", "Status", "View", "Amenities"), show="headings")
+    room_tree_frame = Frame(room_tab)
+    room_tree_frame.pack(fill=BOTH, expand=True, padx=10, pady=10)
+
+    room_tree = ttk.Treeview(
+        room_tree_frame,
+        columns=("Room ID", "Type", "Price", "Condition", "Status", "View", "Amenities"),
+        show="headings",
+    )
     room_tree.pack(fill=BOTH, expand=True)
+
+    # Add scrollbars for Room Treeview
+    room_tree_scrollbar_y = Scrollbar(room_tree_frame, orient="vertical", command=room_tree.yview)
+    room_tree_scrollbar_y.pack(side=RIGHT, fill=Y)
+    room_tree_scrollbar_x = Scrollbar(room_tree_frame, orient="horizontal", command=room_tree.xview)
+    room_tree_scrollbar_x.pack(side=BOTTOM, fill=X)
+
+    room_tree.configure(yscrollcommand=room_tree_scrollbar_y.set, xscrollcommand=room_tree_scrollbar_x.set)
+
     for col in room_tree["columns"]:
         room_tree.heading(col, text=col)
         room_tree.column(col, width=150, anchor=CENTER)
@@ -51,8 +67,24 @@ def view_all_details():
     guest_tab = Frame(notebook)
     notebook.add(guest_tab, text="Guest Details")
 
-    guest_tree = ttk.Treeview(guest_tab, columns=("Guest ID", "Name", "Phone", "Email"), show="headings")
+    guest_tree_frame = Frame(guest_tab)
+    guest_tree_frame.pack(fill=BOTH, expand=True, padx=10, pady=10)
+
+    guest_tree = ttk.Treeview(
+        guest_tree_frame,
+        columns=("Guest ID", "Name", "Phone", "Email"),
+        show="headings",
+    )
     guest_tree.pack(fill=BOTH, expand=True)
+
+    # Add scrollbars for Guest Treeview
+    guest_tree_scrollbar_y = Scrollbar(guest_tree_frame, orient="vertical", command=guest_tree.yview)
+    guest_tree_scrollbar_y.pack(side=RIGHT, fill=Y)
+    guest_tree_scrollbar_x = Scrollbar(guest_tree_frame, orient="horizontal", command=guest_tree.xview)
+    guest_tree_scrollbar_x.pack(side=BOTTOM, fill=X)
+
+    guest_tree.configure(yscrollcommand=guest_tree_scrollbar_y.set, xscrollcommand=guest_tree_scrollbar_x.set)
+
     for col in guest_tree["columns"]:
         guest_tree.heading(col, text=col)
         guest_tree.column(col, width=150, anchor=CENTER)
@@ -66,14 +98,29 @@ def view_all_details():
         for row in rows:
             guest_tree.insert("", "end", values=row)
         conn.close()
-        # Tab for Guest-to-Room Mapping
+
+    # Tab for Guest-to-Room Mapping
     mapping_tab = Frame(notebook)
     notebook.add(mapping_tab, text="Guest-Room Mapping")
 
-    mapping_tree = ttk.Treeview(mapping_tab, columns=("Guest ID", "Guest Name", "Room ID", "Room Type", "Check-In Date", "Check-Out Date"), show="headings")
+    mapping_tree_frame = Frame(mapping_tab)
+    mapping_tree_frame.pack(fill=BOTH, expand=True, padx=10, pady=10)
+
+    mapping_tree = ttk.Treeview(
+        mapping_tree_frame,
+        columns=("Guest ID", "Guest Name", "Room ID", "Room Type", "Check-In Date", "Check-Out Date"),
+        show="headings",
+    )
     mapping_tree.pack(fill=BOTH, expand=True)
 
-    # Define Columns
+    # Add scrollbars for Guest-Room Mapping Treeview
+    mapping_tree_scrollbar_y = Scrollbar(mapping_tree_frame, orient="vertical", command=mapping_tree.yview)
+    mapping_tree_scrollbar_y.pack(side=RIGHT, fill=Y)
+    mapping_tree_scrollbar_x = Scrollbar(mapping_tree_frame, orient="horizontal", command=mapping_tree.xview)
+    mapping_tree_scrollbar_x.pack(side=BOTTOM, fill=X)
+
+    mapping_tree.configure(yscrollcommand=mapping_tree_scrollbar_y.set, xscrollcommand=mapping_tree_scrollbar_x.set)
+
     for col in mapping_tree["columns"]:
         mapping_tree.heading(col, text=col)
         mapping_tree.column(col, width=150, anchor=CENTER)
@@ -172,41 +219,80 @@ def add_room():
 # check in
 def check_in():
     def submit_check_in():
-        guest_id = guest_id_var.get()
         room_id = room_id_var.get()
-        if not guest_id or not room_id:
-            messagebox.showerror("Input Error", "Please provide both Guest ID and Room ID.")
+        check_out_date = check_out_date_var.get()
+
+        # For new guests
+        guest_name = guest_name_var.get()
+        phone_number = phone_number_var.get()
+        email = email_var.get()
+
+        if not room_id or not check_out_date:
+            messagebox.showerror("Input Error", "Please provide Room ID and Check-Out Date.")
             return
 
         conn = connect_to_database()
         if conn:
             try:
                 cursor = conn.cursor()
+
+                # Insert a new guest if fields are provided
+                if guest_name and phone_number and email:
+                    cursor.execute(
+                        "INSERT INTO Guest (guest_name, phone_number, email) VALUES (%s, %s, %s)",
+                        (guest_name, phone_number, email)
+                    )
+                    conn.commit()
+                    guest_id = cursor.lastrowid
+                elif not guest_id_var.get():
+                    messagebox.showerror("Error", "New guest info is incomplete.")
+                    return
+                else:
+                    guest_id = guest_id_var.get()
+
+                # Update the room status and create the booking
                 cursor.execute("UPDATE Room SET status = 'Occupied' WHERE room_id = %s", (room_id,))
                 cursor.execute(
-                    "INSERT INTO Booking (guest_id, room_id, check_in_date) VALUES (%s, %s, CURDATE())",
-                    (guest_id, room_id)
+                    "INSERT INTO Booking (guest_id, room_id, check_in_date, check_out_date) VALUES (%s, %s, CURDATE(), %s)",
+                    (guest_id, room_id, check_out_date)
                 )
                 conn.commit()
-                messagebox.showinfo("Success", f"Guest {guest_id} checked into Room {room_id} successfully!")
+                messagebox.showinfo("Success", f"Check-in successful for Room {room_id}!")
                 check_in_window.destroy()
                 view_rooms()
             except Exception as e:
-                messagebox.showerror("Error", str(e))
+                messagebox.showerror("Database Error", str(e))
             finally:
                 conn.close()
 
+    # Create Check-In Window
     check_in_window = Toplevel(root)
     check_in_window.title("Check-In")
-    check_in_window.geometry("300x200")
-
-    Label(check_in_window, text="Guest ID").pack(pady=5)
-    guest_id_var = StringVar()
-    Entry(check_in_window, textvariable=guest_id_var).pack()
+    check_in_window.geometry("400x500")
 
     Label(check_in_window, text="Room ID").pack(pady=5)
     room_id_var = StringVar()
     Entry(check_in_window, textvariable=room_id_var).pack()
+
+    Label(check_in_window, text="Check-Out Date (YYYY-MM-DD)").pack(pady=5)
+    check_out_date_var = StringVar()
+    Entry(check_in_window, textvariable=check_out_date_var).pack()
+
+    Label(check_in_window, text="Guest ID (if existing)").pack(pady=5)
+    guest_id_var = StringVar()
+    Entry(check_in_window, textvariable=guest_id_var).pack()
+
+    Label(check_in_window, text="Guest Name").pack(pady=5)
+    guest_name_var = StringVar()
+    Entry(check_in_window, textvariable=guest_name_var).pack()
+
+    Label(check_in_window, text="Phone Number").pack(pady=5)
+    phone_number_var = StringVar()
+    Entry(check_in_window, textvariable=phone_number_var).pack()
+
+    Label(check_in_window, text="Email").pack(pady=5)
+    email_var = StringVar()
+    Entry(check_in_window, textvariable=email_var).pack()
 
     Button(check_in_window, text="Submit", command=submit_check_in).pack(pady=10)
 
@@ -251,10 +337,32 @@ root.geometry("1400x800")
 Label(root, text="Hotel Management System", font=("Arial", 24)).pack(pady=10)
 
 # Treeview for displaying rooms
-tree = ttk.Treeview(root, columns=("Room ID", "Type", "Price", "Condition", "Status", "View", "Amenities"), show="headings")
-tree.pack(pady=20, fill="x")
+tree_frame = Frame(root)
+tree_frame.pack(fill=BOTH, expand=True, padx=10, pady=10)
+
+# Add scrollbars for Treeview
+tree_scrollbar_y = Scrollbar(tree_frame, orient="vertical")
+tree_scrollbar_y.pack(side=RIGHT, fill=Y)
+tree_scrollbar_x = Scrollbar(tree_frame, orient="horizontal")
+tree_scrollbar_x.pack(side=BOTTOM, fill=X)
+
+tree = ttk.Treeview(
+    tree_frame,
+    columns=("Room ID", "Type", "Price", "Condition", "Status", "View", "Amenities"),
+    show="headings",
+    yscrollcommand=tree_scrollbar_y.set,
+    xscrollcommand=tree_scrollbar_x.set,
+)
+tree.pack(fill=BOTH, expand=True)
+
+# Configure scrollbars to work with Treeview
+tree_scrollbar_y.config(command=tree.yview)
+tree_scrollbar_x.config(command=tree.xview)
+
 for col in tree["columns"]:
     tree.heading(col, text=col)
+    tree.column(col, width=100, anchor=CENTER)
+
 
 # Buttons
 frame = Frame(root)
