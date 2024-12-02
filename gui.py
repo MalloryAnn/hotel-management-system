@@ -220,6 +220,7 @@ def add_room():
 def check_in():
     def submit_check_in():
         room_id = room_id_var.get()
+        check_in_date = check_in_date_var.get()
         check_out_date = check_out_date_var.get()
 
         # For new guests
@@ -227,8 +228,8 @@ def check_in():
         phone_number = phone_number_var.get()
         email = email_var.get()
 
-        if not room_id or not check_out_date:
-            messagebox.showerror("Input Error", "Please provide Room ID and Check-Out Date.")
+        if not room_id or not check_out_date or not check_in_date:
+            messagebox.showerror("Input Error", "Please provide Room ID, Check-In Date, and Check-Out Date.")
             return
 
         conn = connect_to_database()
@@ -243,18 +244,18 @@ def check_in():
                         (guest_name, phone_number, email)
                     )
                     conn.commit()
-                    guest_id = cursor.lastrowid
+                    guest_id = cursor.lastrowid  # Get the newly inserted guest ID
                 elif not guest_id_var.get():
                     messagebox.showerror("Error", "New guest info is incomplete.")
                     return
                 else:
                     guest_id = guest_id_var.get()
 
-                # Update the room status and create the booking
+                # Update the room status and insert booking details
                 cursor.execute("UPDATE Room SET status = 'Occupied' WHERE room_id = %s", (room_id,))
                 cursor.execute(
-                    "INSERT INTO Booking (guest_id, room_id, check_in_date, check_out_date) VALUES (%s, %s, CURDATE(), %s)",
-                    (guest_id, room_id, check_out_date)
+                    "INSERT INTO Booking (guest_id, room_id, check_in_date, check_out_date) VALUES (%s, %s, %s, %s)",
+                    (guest_id, room_id, check_in_date, check_out_date)
                 )
                 conn.commit()
                 messagebox.showinfo("Success", f"Check-in successful for Room {room_id}!")
@@ -273,6 +274,10 @@ def check_in():
     Label(check_in_window, text="Room ID").pack(pady=5)
     room_id_var = StringVar()
     Entry(check_in_window, textvariable=room_id_var).pack()
+
+    Label(check_in_window, text="Check-In Date (YYYY-MM-DD)").pack(pady=5)
+    check_in_date_var = StringVar()
+    Entry(check_in_window, textvariable=check_in_date_var).pack()
 
     Label(check_in_window, text="Check-Out Date (YYYY-MM-DD)").pack(pady=5)
     check_out_date_var = StringVar()
@@ -295,6 +300,106 @@ def check_in():
     Entry(check_in_window, textvariable=email_var).pack()
 
     Button(check_in_window, text="Submit", command=submit_check_in).pack(pady=10)
+def remove_booking():
+    def search_booking():
+        guest_name = guest_name_var.get()
+        room_id = room_id_var.get()
+
+        if not guest_name and not room_id:
+            messagebox.showerror("Input Error", "Please provide Guest Name or Room ID to search.")
+            return
+
+        conn = connect_to_database()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                query = """
+                    SELECT b.booking_id, g.guest_name, r.room_id, r.room_type, b.check_in_date, b.check_out_date
+                    FROM Booking b
+                    JOIN Guest g ON b.guest_id = g.guest_id
+                    JOIN Room r ON b.room_id = r.room_id
+                """
+                if guest_name and room_id:
+                    query += " WHERE g.guest_name LIKE %s AND r.room_id = %s"
+                    cursor.execute(query, (f"%{guest_name}%", room_id))
+                elif guest_name:
+                    query += " WHERE g.guest_name LIKE %s"
+                    cursor.execute(query, (f"%{guest_name}%",))
+                elif room_id:
+                    query += " WHERE r.room_id = %s"
+                    cursor.execute(query, (room_id,))
+
+                rows = cursor.fetchall()
+                for i in booking_tree.get_children():
+                    booking_tree.delete(i)
+                for row in rows:
+                    booking_tree.insert("", "end", values=row)
+                conn.close()
+            except Exception as e:
+                messagebox.showerror("Database Error", str(e))
+                conn.close()
+
+    def delete_booking():
+        selected_item = booking_tree.selection()
+        if not selected_item:
+            messagebox.showerror("Selection Error", "Please select a booking to remove.")
+            return
+
+        booking_id = booking_tree.item(selected_item, "values")[0]  # Get the booking_id from the selected row
+        room_id = booking_tree.item(selected_item, "values")[2]  # Get the room_id from the selected row
+
+        conn = connect_to_database()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM Booking WHERE booking_id = %s", (booking_id,))
+                cursor.execute("UPDATE Room SET status = 'Vacant' WHERE room_id = %s", (room_id,))
+                conn.commit()
+                messagebox.showinfo("Success", f"Booking ID {booking_id} removed, and Room {room_id} is now vacant.")
+                search_booking()  # Refresh the treeview
+            except Exception as e:
+                messagebox.showerror("Database Error", str(e))
+            finally:
+                conn.close()
+
+    # Create Remove Booking Window
+    remove_booking_window = Toplevel(root)
+    remove_booking_window.title("Remove Booking")
+    remove_booking_window.geometry("900x500")
+
+    # Input Fields for Searching
+    Label(remove_booking_window, text="Guest Name").grid(row=0, column=0, padx=10, pady=10)
+    guest_name_var = StringVar()
+    Entry(remove_booking_window, textvariable=guest_name_var).grid(row=0, column=1, padx=10, pady=10)
+
+    Label(remove_booking_window, text="Room ID").grid(row=0, column=2, padx=10, pady=10)
+    room_id_var = StringVar()
+    Entry(remove_booking_window, textvariable=room_id_var).grid(row=0, column=3, padx=10, pady=10)
+
+    Button(remove_booking_window, text="Search", command=search_booking).grid(row=0, column=4, padx=10, pady=10)
+
+    # Treeview for Showing Search Results
+    booking_tree = ttk.Treeview(
+        remove_booking_window,
+        columns=("Booking ID", "Guest Name", "Room ID", "Room Type", "Check-In Date", "Check-Out Date"),
+        show="headings",
+    )
+    booking_tree.grid(row=1, column=0, columnspan=5, padx=10, pady=10, sticky="nsew")
+
+    # Define Columns
+    for col in booking_tree["columns"]:
+        booking_tree.heading(col, text=col)
+        booking_tree.column(col, width=150, anchor=CENTER)
+
+    # Add Scrollbars
+    scrollbar_y = Scrollbar(remove_booking_window, orient=VERTICAL, command=booking_tree.yview)
+    scrollbar_y.grid(row=1, column=5, sticky="ns")
+    scrollbar_x = Scrollbar(remove_booking_window, orient=HORIZONTAL, command=booking_tree.xview)
+    scrollbar_x.grid(row=2, column=0, columnspan=5, sticky="ew")
+    booking_tree.configure(yscrollcommand=scrollbar_y.set, xscrollcommand=scrollbar_x.set)
+
+    # Delete Button
+    Button(remove_booking_window, text="Delete Booking", command=delete_booking).grid(row=3, column=2, padx=10, pady=10)
 
 def check_out():
     def submit_check_out():
@@ -373,6 +478,8 @@ Button(frame, text="View Rooms", command=view_rooms).pack(side=LEFT, padx=10)
 Button(frame, text="Add Room", command=add_room).pack(side=LEFT, padx=10)
 Button(frame, text="Check-In", command=check_in).pack(side=LEFT, padx=10)
 Button(frame, text="Check-Out", command=check_out).pack(side=LEFT, padx=10)
+Button(frame, text="Remove Booking", command=remove_booking).pack(side=LEFT, padx=10)
+
 
 # Run the application
 root.mainloop()
